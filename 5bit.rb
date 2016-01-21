@@ -193,6 +193,9 @@ class FiveBit
       when char.period?
         @counts["."] += 1
         @data << PERIOD
+        # The next letter PROBABLY starts a sentence and should
+        # be capped, if not then we can manually unshift.
+        shift_once
       when char.letter?
         @counts[char.char.upcase] += 1
         encode_letter(char, context: context)
@@ -200,6 +203,11 @@ class FiveBit
     else 
       encode_symbol(char)
     end
+  end
+
+  def shift_once
+    @shift_mode = :once
+    @shift_status = :uppercase
   end
 
   def encode_symbol(char)
@@ -213,6 +221,9 @@ class FiveBit
       return 
     end
 
+    # next character likely to be upcase
+    shift_once if char.char == "!"
+
     # we need to be in figures mode
     toggle_mode! if @mode == :letters
     # only a single table for not
@@ -225,8 +236,11 @@ class FiveBit
       @counts[:shift] += 1
     end
     @data << char.char.upcase.ord - ALPHABET_OFFSET
-    # shift status reverts in v0.1 so no need to even track it,
-    # all we have so far is momentary on shift
+    # revert non sticky shift status
+    if @shift_mode == :once
+      @shift_mode = :off
+      @shift_status = :lowercase
+    end
   end
 
   def toggle_mode!
